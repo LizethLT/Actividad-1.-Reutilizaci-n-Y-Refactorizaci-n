@@ -1,49 +1,56 @@
-const { getPool, sql } = require('../db/conexion');
+const svc = require('../services/inventarioService');
 const { ok, created, badReq, notFound, serverErr } = require('../base/baseController');
 
 async function listar(req, res) {
   try {
-    const pool = await getPool();
-    const result = await pool.request().query('SELECT * FROM productos ORDER BY nombre');
-    return ok(res, result.recordset, 'Productos obtenidos', { total: result.recordset.length });
+    const productos = await svc.obtenerTodos();
+    return ok(res, productos, 'Productos obtenidos', { total: productos.length });
   } catch (e) { return serverErr(res, e.message); }
 }
 
 async function crear(req, res) {
-  const { nombre, categoria, stock_actual, stock_minimo, precio } = req.body;
+  const { nombre, precio } = req.body;
   if (!nombre || !precio) return badReq(res, 'nombre y precio son obligatorios');
   try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('nombre',       sql.NVarChar, nombre)
-      .input('categoria',    sql.NVarChar, categoria || 'General')
-      .input('stock_actual', sql.Int,      stock_actual || 0)
-      .input('stock_minimo', sql.Int,      stock_minimo || 5)
-      .input('precio',       sql.Decimal,  precio)
-      .query(`INSERT INTO productos (nombre,categoria,stock_actual,stock_minimo,precio)
-              OUTPUT INSERTED.*
-              VALUES (@nombre,@categoria,@stock_actual,@stock_minimo,@precio)`);
-    return created(res, result.recordset[0], 'Producto creado');
+    if (await svc.existeConNombre(nombre))
+      return badReq(res, `El producto "${nombre}" ya existe en el inventario`);
+    const nuevo = await svc.crear(req.body);
+    return created(res, nuevo, 'Producto creado');
   } catch (e) { return serverErr(res, e.message); }
+}
+
+async function actualizar(req, res) {
+  const { nombre, precio } = req.body;
+  if (!nombre || !precio) return badReq(res, 'nombre y precio son obligatorios');
+  try {
+    if (await svc.existeConNombre(nombre, req.params.id))
+      return badReq(res, `Ya existe otro producto con el nombre "${nombre}"`);
+    const actualizado = await svc.actualizar(req.params.id, req.body);
+    if (!actualizado) return notFound(res, 'Producto no encontrado');
+    return ok(res, actualizado, 'Producto actualizado');
+  } catch (e) { return serverErr(res, e.message); }
+}
+
+async function eliminar(req, res) {
+  try {
+    const nombre = await svc.eliminar(req.params.id);
+    return ok(res, { id: req.params.id }, `Producto "${nombre}" eliminado`);
+  } catch (e) {
+    if (e.message === 'TIENE_VENTAS')
+      return badReq(res, 'No se puede eliminar: el producto tiene ventas registradas');
+    if (e.message === 'NO_ENCONTRADO')
+      return notFound(res, 'Producto no encontrado');
+    return serverErr(res, e.message);
+  }
 }
 
 async function checkStock(req, res) {
-  const { id } = req.params;
-  const cantidad = parseInt(req.query.cantidad) || 1;
   try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query('SELECT stock_actual, stock_minimo FROM productos WHERE id = @id');
-    if (!result.recordset.length) return notFound(res, 'Producto no encontrado');
-    const { stock_actual, stock_minimo } = result.recordset[0];
-    return ok(res, {
-      disponible: stock_actual >= cantidad,
-      stock_actual,
-      stock_minimo,
-      necesita_restock: stock_actual <= stock_minimo,
-    });
+    const cantidad = parseInt(req.query.cantidad) || 1;
+    const datos    = await svc.verificarStockDisponible(req.params.id, cantidad);
+    if (!datos) return notFound(res, 'Producto no encontrado');
+    return ok(res, datos);
   } catch (e) { return serverErr(res, e.message); }
 }
 
-module.exports = { listar, crear, checkStock };
+module.exports = { listar, crear, actualizar, eliminar, checkStock };

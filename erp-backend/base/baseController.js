@@ -1,10 +1,3 @@
-/**
- * BaseController — Función genérica de respuesta HTTP
- * Tipo T = cualquier entidad: Producto, Venta, Factura, etc.
- * Todos los controladores usan estas funciones. Nunca construyen
- * su propia respuesta: eso garantiza estructura uniforme en toda la API.
- */
-
 function sendResponse(res, statusCode, success, message, data = null, meta = {}) {
   return res.status(statusCode).json({
     success,
