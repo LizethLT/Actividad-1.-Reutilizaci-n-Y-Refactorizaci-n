@@ -1,14 +1,3 @@
-/*  FASE GREEN
-export function validarMovimiento(tipo, cantidad) {
-  if (cantidad <= 0)
-    return { valido: false, mensaje: 'La cantidad debe ser mayor a 0.' };
-  if (tipo !== 'entrada' && tipo !== 'salida')
-    return { valido: false, mensaje: 'Tipo de movimiento no reconocido.' };
-  return { valido: true, mensaje: 'Movimiento válido.' };
-}*/
-
-//  REFACTOR 
- 
 const TIPOS_VALIDOS = ['entrada', 'salida'];
  
 export function validarMovimiento(tipo, cantidad) {

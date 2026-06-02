@@ -1,5 +1,3 @@
-
-
 export default function AlertaRestock({ productos }) {
   if (!productos.length) return null;
   return (

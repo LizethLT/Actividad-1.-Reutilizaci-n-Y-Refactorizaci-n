@@ -1,4 +1,3 @@
-//  FASE RED
 import { validarMovimiento } from '../utils/validarMovimiento';
 
 describe('validarMovimiento', () => {
@@ -30,3 +29,4 @@ describe('validarMovimiento', () => {
   });
 
 });
+
